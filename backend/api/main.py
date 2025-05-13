@@ -6,7 +6,6 @@ import os
 import shutil
 import uuid
 import yt_dlp
-from playwright.sync_api import sync_playwright
 
 app = FastAPI()
 
@@ -74,36 +73,6 @@ def save_instagram_cookies(username, password, cookie_file='cookies.txt'):
 @app.get("/")
 async def root():
     return JSONResponse({"message": "Welcome to the Instagram Downloader API!"})
-@app.post("/login")
-async def login(username: str = Form(...), password: str = Form(...)):
-    try:
-        save_instagram_cookies(username, password)
-        return JSONResponse({"message": "Login successful"})
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
-
-async def save_instagram_cookies(username, password, cookie_file='cookies.txt'):
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        context = browser.new_context()
-        page = context.new_page()
-
-        page.goto("https://www.instagram.com/accounts/login/")
-        page.wait_for_selector("input[name='username']", timeout=10000)
-
-        page.fill("input[name='username']", username)
-        page.fill("input[name='password']", password)
-        page.click("button[type='submit']")
-
-        # Wait for login (you may need to handle 2FA here manually)
-        page.wait_for_url("https://www.instagram.com/", timeout=20000)
-
-        cookies = context.cookies()
-        with open(cookie_file, 'w') as f:
-            f.write('\n'.join([f"{c['domain']}\tTRUE\t/\tFALSE\t0\t{c['name']}\t{c['value']}" for c in cookies]))
-
-        browser.close()
-
 
 @app.post("/download-dp")
 async def download_instagram_dp(username: str = Form(...)):
@@ -123,58 +92,9 @@ async def download_instagram_dp(username: str = Form(...)):
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
-# @app.post("/download-posts")
-# async def download_instagram_posts(username: str = Form(...), post_count: int = Form(3)):
-#     loader = instaloader.Instaloader()
-#     folder_path = clear_user_folder(username)
-#     try:
-#         profile = instaloader.Profile.from_username(loader.context, username)
-
-#         count = 0
-#         for post in profile.get_posts():
-#             if count >= post_count:
-#                 break
-#             loader.download_post(post, target=username)
-#             count += 1
-
-#         return JSONResponse({"message": f"Downloaded {count} post(s) from @{username}."})
-#     except Exception as e:
-#         return JSONResponse({"error": str(e)}, status_code=500)
-
-
-@app.post("/download-stories")
-async def download_instagram_stories(username: str = Form(...)):
-    output_dir = f"downloads/{uuid.uuid4().hex}"
-    os.makedirs(output_dir, exist_ok=True)
-
-    url = f"https://www.instagram.com/stories/{username}/"
-    ydl_opts = {
-        'cookiefile': 'cookies.txt',
-        'outtmpl': f'{output_dir}/%(title)s.%(ext)s',
-        'quiet': True,
-        'format': 'best',
-    }
-
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
-
-        # Get first downloaded file
-        files = os.listdir(output_dir)
-        if not files:
-            return JSONResponse({"error": "No stories found or not public"}, status_code=404)
-
-        file_path = os.path.join(output_dir, files[0])
-        return FileResponse(path=file_path, filename=os.path.basename(file_path), media_type="video/mp4")
-
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
-    finally:
-        # Optional: clean up downloaded files after response
-        pass  # You can also use shutil.rmtree(output_dir)
-
 @app.post("/download-reel")
 async def download_reel(url: str = Form(...)):
+
     try:
         # Create a temporary file path
         video_id = str(uuid.uuid4())
@@ -199,3 +119,10 @@ async def download_reel(url: str = Form(...)):
 
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
+    
+    
+# 👇 Add this to support dynamic port binding for deployment
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT", 8000))  # Use PORT env var or default to 8000
+    uvicorn.run("main:app", host="0.0.0.0", port=port)
