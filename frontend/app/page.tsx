@@ -24,7 +24,9 @@ export default function Home() {
   // const [login, setLogin] = useState<boolean>(false);
   // const [loginUsername, setLoginUsername] = useState<string>('');
   // const [password, setPassword] = useState<string>('');
-  const backendUrl = "http://localhost:8000";
+  const backendUrl = "https://instagram-5-dm4n.onrender.com"
+  
+  // "http://localhost:8000";
   // console.log(loginUsername, password);
 
   // const handleLogin = async () => {
